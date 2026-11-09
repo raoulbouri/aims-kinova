@@ -1,0 +1,10 @@
+.env
+logs/*
+!logs/.gitkeep
+vendor/*.whl
+python/external/
+ros_ws/src/external/
+__pycache__/
+*.pyc
+.DS_Store
+.venv/

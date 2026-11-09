@@ -1,0 +1,40 @@
+services:
+  kinova:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        CATKIN_JOBS: ${CATKIN_JOBS:-2}
+        WITH_GAZEBO: ${WITH_GAZEBO:-false}
+    image: kinova-gen3-noetic:latest
+    container_name: kinova
+    # linux/amd64 (Rosetta on Apple Silicon) is the tested path; linux/arm64 is experimental.
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - KINOVA_ARM=${KINOVA_ARM:-blue}
+      - START_GUI=${START_GUI:-1}
+      - CATKIN_JOBS=${CATKIN_JOBS:-2}
+    # Bridge networking is enough: the container reaches 192.168.2.x through the Mac's
+    # ethernet via Docker Desktop's NAT (outbound TCP 10000 / UDP 10001 / RTSP-over-TCP 554).
+    ports:
+      - "127.0.0.1:6080:6080"   # noVNC (RViz / rqt in your browser)
+    volumes:
+      - ./python:/workspace/python
+      - ./ros_ws/src:/workspace/ros_ws/src
+      - ./docs:/workspace/docs:ro
+      - ./logs:/workspace/logs
+      - ros_ws_build:/workspace/ros_ws/build
+      - ros_ws_devel:/workspace/ros_ws/devel
+      - ros_ws_catkin:/workspace/ros_ws/.catkin_tools
+    shm_size: "1gb"
+    stdin_open: true
+    tty: true
+    restart: "no"
+
+volumes:
+  ros_ws_build:
+  ros_ws_devel:
+  ros_ws_catkin:

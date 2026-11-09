@@ -1,0 +1,9 @@
+<launch>
+  <!-- Driver + MoveIt + RViz + camera streams + rqt image viewer -->
+  <arg name="start_rviz" default="true"/>
+  <include file="$(find kinova_bringup)/launch/driver.launch">
+    <arg name="start_rviz" value="$(arg start_rviz)"/>
+  </include>
+  <include file="$(find kinova_bringup)/launch/vision.launch"/>
+  <node name="image_view" pkg="rqt_image_view" type="rqt_image_view" args="/camera/color/image_raw"/>
+</launch>

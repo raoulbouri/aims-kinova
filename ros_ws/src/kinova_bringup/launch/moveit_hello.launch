@@ -1,0 +1,7 @@
+<launch>
+  <!-- Run AFTER driver.launch is up. Plans/executes to a MoveIt named target. -->
+  <arg name="target" default="home"/>
+  <arg name="robot_name" default="my_gen3"/>
+  <node name="moveit_hello" pkg="kinova_bringup" type="moveit_hello.py" ns="$(arg robot_name)"
+        output="screen" args="--target $(arg target)"/>
+</launch>

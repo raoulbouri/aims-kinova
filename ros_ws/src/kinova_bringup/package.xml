@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>kinova_bringup</name>
+  <version>0.1.0</version>
+  <description>AIMS defaults for the Kinova Gen3 6DoF + Robotiq 2F-85 (driver, vision, MoveIt example).</description>
+  <maintainer email="user@example.com">user</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>kortex_driver</exec_depend>
+  <exec_depend>kinova_vision</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>moveit_commander</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>rqt_image_view</exec_depend>
+</package>

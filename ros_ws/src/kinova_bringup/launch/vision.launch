@@ -1,0 +1,9 @@
+<launch>
+  <!-- Color + depth over RTSP. protocols=tcp: UDP RTP cannot traverse Docker Desktop's NAT on macOS. -->
+  <arg name="ip" default="$(env ROBOT_IP)"/>
+  <include file="$(find kinova_vision)/launch/kinova_vision.launch">
+    <arg name="device" value="$(arg ip)"/>
+    <arg name="color_rtsp_element_config" value="rtspsrc location=rtsp://$(arg ip)/color latency=30 protocols=tcp"/>
+    <arg name="depth_rtsp_element_config" value="rtspsrc location=rtsp://$(arg ip)/depth latency=30 protocols=tcp"/>
+  </include>
+</launch>

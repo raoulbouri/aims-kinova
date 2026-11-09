@@ -1,0 +1,20 @@
+<launch>
+  <!-- AIMS Gen3: 6 DoF (driver defaults to 7!), Robotiq 2F-85, vision module. IP/creds from .env -->
+  <arg name="ip"         default="$(env ROBOT_IP)"/>
+  <arg name="username"   default="$(env KINOVA_USERNAME)"/>
+  <arg name="password"   default="$(env KINOVA_PASSWORD)"/>
+  <arg name="start_rviz" default="true"/>
+  <arg name="start_moveit" default="true"/>
+
+  <include file="$(find kortex_driver)/launch/kortex_driver.launch">
+    <arg name="arm"          value="gen3"/>
+    <arg name="dof"          value="6"/>
+    <arg name="gripper"      value="robotiq_2f_85"/>
+    <arg name="vision"       value="true"/>
+    <arg name="ip_address"   value="$(arg ip)"/>
+    <arg name="username"     value="$(arg username)"/>
+    <arg name="password"     value="$(arg password)"/>
+    <arg name="start_rviz"   value="$(arg start_rviz)"/>
+    <arg name="start_moveit" value="$(arg start_moveit)"/>
+  </include>
+</launch>
