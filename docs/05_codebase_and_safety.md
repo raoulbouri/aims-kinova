@@ -129,13 +129,19 @@ For scripted work with hundreds of small motions (e.g. turning Etch-a-Sketch kno
   nothing is retried, and all later motion is refused until a person starts the server again.
 - The server holds one session and reads the arm state every 10 s when idle, because the session expires after 60 s.
 - `--fake` runs the same server on a `FakeArm` with no robot and no `kortex_api`, for developing clients.
-- `motion.rotate_joint` turns a continuous joint by any angle as absolute moves of at most 120 deg with a speed
-  constraint, verifying each chunk. **Unverified on the arm:** that firmware 2.5.2 honours
-  `JOINT_CONSTRAINT_SPEED` and takes the short way to a wrapped target. A chunk that finishes much faster than the
-  commanded speed implies is reported as `SPEED_LIMIT_NOT_HONOURED` and ends the routine. First test: a 10 deg
-  and then a 120 deg rotation of J6 in free space, each individually approved.
-- `envelopes/etch_draw.json` holds a PLACEHOLDER box; set it from the taught knob poses.
-- Offline tests: `python/tests/test_routine.py`.
+- `motion.rotate_joint` turns a continuous joint by any angle as absolute moves of at most 120 deg, each a
+  `reach_joint_angles` action with a **duration** constraint of |chunk| / speed (at least 1 s), verifying each
+  chunk. Verified on the blue arm, firmware 2.5.2, 2026-11-22: 10–180 deg J6 turns with the knob held, short way
+  round a wrapped target. `JOINT_CONSTRAINT_SPEED` is refused there (`ACTION_ABORT`, abort_details 1, METHOD_FAILED),
+  and so is 30 deg in 1 s, while 30 deg in 2 s works: the rotation speed is capped at
+  `motion.ROTATE_MAX_DPS` = 15 deg/s whatever the caller, `.env` or envelope asks for. Where the real limit sits
+  between 15 and 30 deg/s is not measured yet. A chunk that finishes much faster than the commanded speed implies
+  is reported as `SPEED_LIMIT_NOT_HONOURED` and ends the routine.
+- `motion.gripper` returns on a stall (fingers stopped on an object) without sending `Base.Stop()`.
+- Envelopes: `envelopes/etch_draw.json` holds a PLACEHOLDER box. `envelopes/etch_draw_blue_20261122.json` is the
+  blue arm's measured box for the toy taped on 2026-11-22 (from the etch-a-sketch knob readings); it is invalid if
+  the toy moves.
+- Offline tests: `python/tests/test_routine.py`, `test_rotate_duration.py`, `test_gripper_stall.py`.
 
 ### Why a Cartesian check isn't enough on its own
 The Base moves the tool in a straight line from p₀ to p₁: p(s) = (1−s)p₀ + s·p₁, s ∈ [0,1]. The sphere and

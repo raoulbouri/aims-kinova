@@ -1,0 +1,22 @@
+{
+  "name": "etch_draw_blue_20261122",
+  "box_min": [
+    0.307,
+    -0.118,
+    0.039
+  ],
+  "box_max": [
+    0.439,
+    0.124,
+    0.26
+  ],
+  "max_lin_speed": 0.05,
+  "max_ang_speed": 30.0,
+  "max_tilt_deg": 5.0,
+  "rotate_joint": 6,
+  "max_rotation_deg": 1800.0,
+  "max_step_m": 0.25,
+  "max_commands": 2000,
+  "max_duration_s": 1800.0,
+  "notes": "Blue arm, toy taped 2026-11-22. Box from etch-a-sketch scripts/knob_poses.py on readings hardware/arm_readings/20261122_blue (grasp tool z 0.054-0.056 m, approach +0.05 m), 3 cm margin sideways, 1.5 cm under the grasps; ceiling 0.26 m so the arm's parked pose (z 0.252 above the x knob) is inside. Invalid if the toy moves."
+}
