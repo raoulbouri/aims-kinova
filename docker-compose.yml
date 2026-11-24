@@ -27,6 +27,7 @@ services:
       - ./ros_ws/src:/workspace/ros_ws/src
       - ./docs:/workspace/docs:ro
       - ./logs:/workspace/logs
+      - ./scripts:/workspace/scripts:ro
       - ros_ws_build:/workspace/ros_ws/build
       - ros_ws_devel:/workspace/ros_ws/devel
       - ros_ws_catkin:/workspace/ros_ws/.catkin_tools
