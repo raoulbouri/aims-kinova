@@ -141,7 +141,18 @@ For scripted work with hundreds of small motions (e.g. turning Etch-a-Sketch kno
   setting); read them there (`ControlConfigClient.GetAllKinematicSoftLimits`, read-only) before raising the cap.
   A chunk that finishes much faster than the commanded speed implies is reported as `SPEED_LIMIT_NOT_HONOURED`
   and ends the routine.
-- `motion.gripper` returns on a stall (fingers stopped on an object) without sending `Base.Stop()`.
+- `motion.gripper` returns on a stall (fingers stopped on an object) without sending `Base.Stop()`. Checked on the
+  green arm with the Etch-a-Sketch knob (2026-11-24): the grip stayed at 0.707 over 3 s with no stop, and a held
+  knob turned 10 then 90 deg with `rotate_joint` at 15 deg/s. A stop after a stall is not needed.
+- **Direction:** a positive J6 delta turns the tool (and a gripped knob) **anticlockwise seen from above** when the
+  tool points down (forward kinematics: J6 +10 deg → tool heading +10 deg; confirmed on the knob).
+- **Heading, not `theta_z`:** with the tool pointing straight down the arm may report the equivalent Euler triple,
+  e.g. (0.4, 179.1, 10.4) instead of (180, 0, 190.4). Compare the heading of the tool x-axis,
+  atan2(sin θz·cos θy, cos θz·cos θy), not raw `theta_z`.
+- **J2 overheats when parked low:** holding the tool about 5 cm above the table for a long stretch took J2 to its
+  60 °C limit (`MAXIMUM_MOTOR_TEMPERATURE`, arm `IN_FAULT`, base also showed `EMERGENCY_STOP_ACTIVATED`) and gripper
+  commands were refused until the fault cleared. Lift between drawing sessions; read temperatures with
+  `base_cyclic.RefreshFeedback().actuators[i].temperature_motor`.
 - Envelopes: `envelopes/etch_draw.json` holds a PLACEHOLDER box. `envelopes/etch_draw_blue_20261122.json` is the
   blue arm's measured box for the toy taped on 2026-11-22 (from the etch-a-sketch knob readings); it is invalid if
   the toy moves.
