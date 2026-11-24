@@ -5,6 +5,7 @@ Run by a person at the arm, e-stop in reach, tool pointing down in free space (n
 Every move asks for `yes` first; the first failure or abort stops the arm and ends the script (no retries).
 
   docker compose exec kinova with-ros.sh python3 /workspace/scripts/rotate_hw_checks.py A   # speed limit
+  ... A 30   or   A 120   # one chunk size per run (A stops at the first abort)
   ... B   # gripper stall: is a Base.Stop() after a stall useful or harmful?
   ... C   # end-to-end: rotate_joint at the default (capped) speed, 10 then 120 deg, and back
 Natively (Python 3.10 venv with kortex_api 2.6.0 + protobuf 3.20.3): python scripts/rotate_hw_checks.py A
@@ -67,8 +68,8 @@ def j6_move(k, delta, duration, what):
     ok_or_stop(k, res, what)
 
 
-def check_a(k):
-    for chunk in (30.0, 120.0):
+def check_a(k, chunks=(30.0, 120.0)):
+    for chunk in chunks:
         for speed in (15.0, 20.0, 25.0, 30.0):
             for sign in (1, -1):
                 j6_move(k, sign * chunk, chunk / speed, "A %g deg @ %g deg/s" % (sign * chunk, speed))
@@ -115,7 +116,10 @@ def main():
         s = snap(k)
         if s["arm_state"] == "ARMSTATE_IN_FAULT":
             sys.exit("Arm is in fault; clear it by hand first.")
-        {"A": check_a, "B": check_b, "C": check_c}[which](k)
+        if which == "A" and len(sys.argv) > 2:          # e.g. `A 120`: one chunk size per run, since A stops at
+            check_a(k, [float(c) for c in sys.argv[2:]])  # the first abort
+        else:
+            {"A": check_a, "B": check_b, "C": check_c}[which](k)
 
 
 if __name__ == "__main__":

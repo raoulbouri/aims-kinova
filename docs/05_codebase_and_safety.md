@@ -134,9 +134,13 @@ For scripted work with hundreds of small motions (e.g. turning Etch-a-Sketch kno
   chunk. Verified on the blue arm, firmware 2.5.2, 2026-11-22: 10–180 deg J6 turns with the knob held, short way
   round a wrapped target. `JOINT_CONSTRAINT_SPEED` is refused there (`ACTION_ABORT`, abort_details 1, METHOD_FAILED),
   and so is 30 deg in 1 s, while 30 deg in 2 s works: the rotation speed is capped at
-  `motion.ROTATE_MAX_DPS` = 15 deg/s whatever the caller, `.env` or envelope asks for. Where the real limit sits
-  between 15 and 30 deg/s is not measured yet. A chunk that finishes much faster than the commanded speed implies
-  is reported as `SPEED_LIMIT_NOT_HONOURED` and ends the routine.
+  `motion.ROTATE_MAX_DPS` = 15 deg/s whatever the caller, `.env` or envelope asks for. The limit is per arm: the
+  **green** arm (2026-11-24, `scripts/rotate_hw_checks.py` A and C) accepted J6 ±30 and ±120 deg at 15, 20, 25 and
+  30 deg/s with no abort (moves take 0.14–0.25 s longer than commanded, error ≤ 0.18 deg), and its joint speed soft
+  limits are 80/80/80/70/70/70 deg/s. So the blue arm's refusal is probably its own stored limits (a shared arm
+  setting); read them there (`ControlConfigClient.GetAllKinematicSoftLimits`, read-only) before raising the cap.
+  A chunk that finishes much faster than the commanded speed implies is reported as `SPEED_LIMIT_NOT_HONOURED`
+  and ends the routine.
 - `motion.gripper` returns on a stall (fingers stopped on an object) without sending `Base.Stop()`.
 - Envelopes: `envelopes/etch_draw.json` holds a PLACEHOLDER box. `envelopes/etch_draw_blue_20261122.json` is the
   blue arm's measured box for the toy taped on 2026-11-22 (from the etch-a-sketch knob readings); it is invalid if
