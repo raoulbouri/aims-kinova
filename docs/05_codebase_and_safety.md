@@ -149,6 +149,17 @@ For scripted work with hundreds of small motions (e.g. turning Etch-a-Sketch kno
 - **Heading, not `theta_z`:** with the tool pointing straight down the arm may report the equivalent Euler triple,
   e.g. (0.4, 179.1, 10.4) instead of (180, 0, 190.4). Compare the heading of the tool x-axis,
   atan2(sin θz·cos θy, cos θz·cos θy), not raw `theta_z`.
+- **Torque backstop for joint rotations:** an envelope may set `max_joint_torque_nm`; then `rotate_joint` watches that
+  joint's torque (`base_cyclic`, in a thread) during every chunk and sends `Base.Stop()` once it stays above the limit
+  for 2 readings in a row (`motion.torque_watch`), reporting `TORQUE_LIMIT` with the degrees turned (the routine ends).
+  The approval summary shows it. Measured on the green arm (2026-11-24, Etch-a-Sketch knob): J6 reads about +-0.2 Nm
+  while turning, the same with or without a knob (joint friction), moving readings up to ~0.5 Nm; the etch-sim drawing
+  envelope uses 0.7 Nm. A last resort only: on a ~5 mm string drum 0.7 Nm is ~100 N of tension. Armed on the arm for
+  55 commands without tripping; the trip itself is untested on hardware. Kortex has no gripper force mode
+  (`GRIPPER_FORCE` is "not implemented yet" in Base.proto), so a light grip is set by position.
+- **Xbox pad input aborts commands:** while the pad is connected, a resting thumb or an off-centre stick puts the arm
+  in manual control and the running action ends with `ACTION_ABORT` a few mm in; it also drifted the arm 7-18 mm
+  between commands (2026-11-24). Unplug the pad's USB for scripted sessions.
 - **J2 overheats when parked low:** holding the tool about 5 cm above the table for a long stretch took J2 to its
   60 °C limit (`MAXIMUM_MOTOR_TEMPERATURE`, arm `IN_FAULT`, base also showed `EMERGENCY_STOP_ACTIVATED`) and gripper
   commands were refused until the fault cleared. Lift between drawing sessions; read temperatures with

@@ -35,9 +35,9 @@ class RealArm:
         with self.lock:
             return motion.move_to_pose(self.k, x, y, z, theta_x, theta_y, theta_z, lin_speed=lin_speed, ang_speed=ang_speed)
 
-    def rotate_joint(self, joint_index: int, delta_deg: float, speed_dps: float) -> Dict:
+    def rotate_joint(self, joint_index: int, delta_deg: float, speed_dps: float, max_torque_nm=None) -> Dict:
         with self.lock:
-            return motion.rotate_joint(self.k, joint_index, delta_deg, speed_dps)
+            return motion.rotate_joint(self.k, joint_index, delta_deg, speed_dps, max_torque_nm=max_torque_nm)
 
     def gripper(self, position: float) -> Dict:
         with self.lock:
@@ -85,7 +85,8 @@ class FakeArm:
             self.pose = {"x": x, "y": y, "z": z, "theta_x": theta_x, "theta_y": theta_y, "theta_z": theta_z}
         return res
 
-    def rotate_joint(self, joint_index: int, delta_deg: float, speed_dps: float) -> Dict:
+    def rotate_joint(self, joint_index: int, delta_deg: float, speed_dps: float, max_torque_nm=None) -> Dict:
+        self.last_max_torque_nm = max_torque_nm
         res = self._result(rotated_deg=delta_deg, chunks=max(1, int(math.ceil(abs(delta_deg) / 120.0))))
         if res["ok"]:
             self.q[joint_index] += delta_deg

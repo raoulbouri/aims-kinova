@@ -1,6 +1,7 @@
 """High-level (single-level servoing) motion commands. Every call blocks until the action
 ENDs/ABORTs, and a Ctrl-C during motion sends Base.Stop()."""
 import threading
+import os
 import time
 from contextlib import contextmanager
 
@@ -151,6 +152,32 @@ ROTATE_MIN_CHUNK_S = 1.0      # shortest duration given to one chunk (short dura
 ROTATE_MAX_DPS = 15.0         # rotation speed cap: 30 deg/s was refused on the blue arm, 15 deg/s works (2026-11-22)
 
 
+def rotate_max_dps() -> float:
+    """The rotation cap for THIS arm: KINOVA_ROTATE_MAX_DPS if set (read when a rotation runs), else ROTATE_MAX_DPS.
+    Per arm because the blue arm refuses 30 deg/s while the green arm turns J6 at 15-30 deg/s cleanly
+    (scripts/rotate_hw_checks.py, 2026-11-24). It never lifts the .env cap (KINOVA_MAX_ANG_SPEED) applied on top."""
+    return float(os.environ.get("KINOVA_ROTATE_MAX_DPS", ROTATE_MAX_DPS))
+
+
+TORQUE_CONSECUTIVE = 2       # samples in a row above the limit before stopping (one noisy reading must not trip it)
+
+
+def torque_watch(read_torque, limit_nm, stop, done, consecutive=TORQUE_CONSECUTIVE, period_s=0.01) -> dict:
+    """Backstop while a joint turns: poll read_torque() until done(); if |torque| > limit_nm for `consecutive`
+    samples in a row, call stop() at once and report it. On the green arm a knob turning freely reads about
+    +-0.2 Nm on J6 (the joint's own friction) with moving readings up to ~0.5 Nm (etch-a-sketch, 2026-11-24)."""
+    over, peak = 0, 0.0
+    while not done():
+        t = float(read_torque())
+        peak = max(peak, abs(t))
+        over = over + 1 if abs(t) > limit_nm else 0
+        if over >= consecutive:
+            stop()
+            return {"tripped": True, "torque_nm": t, "peak_nm": peak}
+        time.sleep(period_s)
+    return {"tripped": False, "peak_nm": peak}
+
+
 def rotate_chunks(delta_deg, speed_dps, read_joint, send_chunk, others_moved=lambda: 0.0,
                   chunk_deg=ROTATE_CHUNK_DEG, tol_deg=ROTATE_TOL_DEG, clock=time.time) -> dict:
     """Turn one joint by delta_deg (any size, signed) as a series of absolute-angle moves.
@@ -202,7 +229,7 @@ def reach_joints_timed(k, angles_deg, duration_s, timeout_s=ACTION_TIMEOUT_S, na
     return _run(k, lambda: k.base.ExecuteAction(action), timeout=timeout_s)
 
 
-def rotate_joint(k, joint_index: int, delta_deg: float, speed_dps=None) -> dict:
+def rotate_joint(k, joint_index: int, delta_deg: float, speed_dps=None, max_torque_nm=None) -> dict:
     """Spin a continuous joint (0-based index; J1, J4 or J6) by delta_deg at a capped speed.
 
     Each chunk is a reach_joint_angles action with a JOINT_CONSTRAINT_DURATION of |chunk| / speed
@@ -213,17 +240,37 @@ def rotate_joint(k, joint_index: int, delta_deg: float, speed_dps=None) -> dict:
     the same way, while 30 deg in 2 s works. So the speed is capped at ROTATE_MAX_DPS whatever the caller,
     .env or envelope asks for (an envelope's max_ang_speed also caps Cartesian orientation speed, so it
     stays as it is).
+
+    max_torque_nm: if set, J(joint_index+1) torque is watched during every chunk (torque_watch) and the arm is
+    stopped at once above it; the result is then TORQUE_LIMIT with the degrees actually turned.
     """
     if safety.JOINT_LIMITS_DEG[joint_index] is not None:
         raise safety.SafetyError("J%d is not a continuous joint" % (joint_index + 1))
-    speed = safety.clamp_speed(speed_dps or k.cfg.max_ang_speed, min(k.cfg.max_ang_speed, ROTATE_MAX_DPS))
+    speed = safety.clamp_speed(speed_dps or k.cfg.max_ang_speed, min(k.cfg.max_ang_speed, rotate_max_dps()))
     start = state.joint_angles(k)
 
     def send_chunk(target_deg, timeout_s):
         angles = state.joint_angles(k)
         duration_s = max(abs(safety.wrap_deg(target_deg - angles[joint_index])) / speed, ROTATE_MIN_CHUNK_S)
         angles[joint_index] = target_deg
-        return reach_joints_timed(k, angles, duration_s, timeout_s)
+        if not max_torque_nm:
+            return reach_joints_timed(k, angles, duration_s, timeout_s)
+        import threading
+        finished, watch = threading.Event(), {}
+        th = threading.Thread(target=lambda: watch.update(torque_watch(
+            lambda: k.base_cyclic.RefreshFeedback().actuators[joint_index].torque, float(max_torque_nm),
+            lambda: k.base.Stop(), finished.is_set)), daemon=True)
+        th.start()
+        try:
+            res = reach_joints_timed(k, angles, duration_s, timeout_s)
+        finally:
+            finished.set()
+            th.join(timeout=2.0)
+        if watch.get("tripped"):
+            return {"ok": False, "event": "TORQUE_LIMIT (J%d %.2f Nm > %.2f Nm)" % (joint_index + 1, watch["torque_nm"],
+                                                                                 float(max_torque_nm)),
+                    "peak_torque_nm": watch["peak_nm"]}
+        return dict(res, peak_torque_nm=watch.get("peak_nm"))
 
     def others_moved():
         now = state.joint_angles(k)
