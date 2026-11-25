@@ -1,6 +1,7 @@
 """High-level (single-level servoing) motion commands. Every call blocks until the action
 ENDs/ABORTs, and a Ctrl-C during motion sends Base.Stop()."""
 import threading
+import os
 import time
 from contextlib import contextmanager
 
@@ -151,6 +152,13 @@ ROTATE_MIN_CHUNK_S = 1.0      # shortest duration given to one chunk (short dura
 ROTATE_MAX_DPS = 15.0         # rotation speed cap: 30 deg/s was refused on the blue arm, 15 deg/s works (2026-11-22)
 
 
+def rotate_max_dps() -> float:
+    """The rotation cap for THIS arm: KINOVA_ROTATE_MAX_DPS if set (read when a rotation runs), else ROTATE_MAX_DPS.
+    Per arm because the blue arm refuses 30 deg/s while the green arm turns J6 at 15-30 deg/s cleanly
+    (scripts/rotate_hw_checks.py, 2026-11-24). It never lifts the .env cap (KINOVA_MAX_ANG_SPEED) applied on top."""
+    return float(os.environ.get("KINOVA_ROTATE_MAX_DPS", ROTATE_MAX_DPS))
+
+
 TORQUE_CONSECUTIVE = 2       # samples in a row above the limit before stopping (one noisy reading must not trip it)
 
 
@@ -238,7 +246,7 @@ def rotate_joint(k, joint_index: int, delta_deg: float, speed_dps=None, max_torq
     """
     if safety.JOINT_LIMITS_DEG[joint_index] is not None:
         raise safety.SafetyError("J%d is not a continuous joint" % (joint_index + 1))
-    speed = safety.clamp_speed(speed_dps or k.cfg.max_ang_speed, min(k.cfg.max_ang_speed, ROTATE_MAX_DPS))
+    speed = safety.clamp_speed(speed_dps or k.cfg.max_ang_speed, min(k.cfg.max_ang_speed, rotate_max_dps()))
     start = state.joint_angles(k)
 
     def send_chunk(target_deg, timeout_s):

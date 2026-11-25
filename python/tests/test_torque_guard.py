@@ -58,3 +58,16 @@ class EnvelopeTorque(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RotateCap(unittest.TestCase):
+    def test_per_arm_cap_from_the_environment_defaults_to_15(self):
+        old = os.environ.pop("KINOVA_ROTATE_MAX_DPS", None)
+        try:
+            self.assertEqual(motion.rotate_max_dps(), 15.0)
+            os.environ["KINOVA_ROTATE_MAX_DPS"] = "30"
+            self.assertEqual(motion.rotate_max_dps(), 30.0)
+        finally:
+            os.environ.pop("KINOVA_ROTATE_MAX_DPS", None)
+            if old is not None:
+                os.environ["KINOVA_ROTATE_MAX_DPS"] = old
