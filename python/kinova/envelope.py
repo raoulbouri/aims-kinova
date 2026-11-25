@@ -28,6 +28,7 @@ class Envelope:
     max_tilt_deg: float = 5.0             # tool axis must stay within this of straight down
     rotate_joint: int = 6                 # the only joint the routine may spin (1-based)
     max_rotation_deg: float = 720.0       # per rotate command
+    max_joint_torque_nm: Optional[float] = None   # if set, the spinning joint is stopped above this torque (backstop)
     max_step_m: float = 0.25              # per Cartesian command
     max_commands: int = 2000
     max_duration_s: float = 1800.0
@@ -68,11 +69,13 @@ class Envelope:
 
     def summary(self) -> str:
         return ("ROUTINE %r: tool stays inside x[%.3f, %.3f] y[%.3f, %.3f] z[%.3f, %.3f] m, pointing down within "
-                "%.0f deg; <= %.3f m/s and <= %.0f deg/s; joint %d may spin up to %.0f deg per command; gripper "
+                "%.0f deg; <= %.3f m/s and <= %.0f deg/s; joint %d may spin up to %.0f deg per command%s; gripper "
                 "open/close; at most %d commands or %.0f min. No further prompts until it ends. %s"
                 % (self.name, self.box_min[0], self.box_max[0], self.box_min[1], self.box_max[1], self.box_min[2],
                    self.box_max[2], self.max_tilt_deg, self.max_lin_speed, self.max_ang_speed, self.rotate_joint,
-                   self.max_rotation_deg, self.max_commands, self.max_duration_s / 60.0, self.notes))
+                   self.max_rotation_deg,
+                   " (stopped above %.2f Nm)" % self.max_joint_torque_nm if self.max_joint_torque_nm else "",
+                   self.max_commands, self.max_duration_s / 60.0, self.notes))
 
 
 def tilt_from_down_deg(theta_x: float, theta_y: float) -> float:
@@ -166,7 +169,8 @@ class Routine:
             self.env.check_pose(p["x"], p["y"], p["z"], p["theta_x"], p["theta_y"])
 
         return self._run("rotate(J%d, %.1f deg)" % (self.env.rotate_joint, delta_deg), check,
-                         lambda: self.arm.rotate_joint(self.env.rotate_joint - 1, delta_deg, speed))
+                         lambda: self.arm.rotate_joint(self.env.rotate_joint - 1, delta_deg, speed,
+                                                       max_torque_nm=self.env.max_joint_torque_nm))
 
     def gripper(self, position: float) -> Dict:
         return self._run("gripper(%.2f)" % position, lambda: None, lambda: self.arm.gripper(position))
